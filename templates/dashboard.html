@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAM - Disaster Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-rail">
+      <div class="rail-brand">
+        <div class="brand-mark"></div>
+        <div>
+          <strong>DAM</strong>
+          <small>Field Monitor</small>
+        </div>
+      </div>
+
+      <nav class="rail-nav">
+        <a class="rail-link" href="/home">
+          <span class="rail-box"></span>
+          <span>Home</span>
+        </a>
+        <a class="rail-link active" href="/dashboard">
+          <span class="rail-box"></span>
+          <span>Disaster Dashboard</span>
+        </a>
+        <a class="rail-link" href="/submission">
+          <span class="rail-box"></span>
+          <span>Submission</span>
+        </a>
+        {% if session.get('is_admin') %}
+        <a class="rail-link" href="/admin">
+          <span class="rail-box"></span>
+          <span>Admin Panel</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <a class="rail-link logout-link" href="/logout">
+        <span class="rail-box"></span>
+        <span>Logout</span>
+      </a>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <p class="page-kicker">DAM</p>
+          <h1>Disaster Dashboard</h1>
+        </div>
+
+        <div class="header-actions">
+          {% if session.get('is_admin') %}
+          <a class="header-action" href="/admin">
+            <span class="header-action-box"></span>
+            <span>Admin</span>
+          </a>
+          {% endif %}
+          <a class="header-action" href="/home">
+            <span class="header-action-box"></span>
+            <span>Home</span>
+          </a>
+
+          <button class="profile-card" type="button" onclick="focusCurrentSelection()">
+            <div class="profile-icon"></div>
+            <div>
+              <strong>{{ session.get('email', 'Field Team') }}</strong>
+              <div class="profile-lines">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      <section class="dashboard-top">
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Location</h2>
+              <p>Enter a location or click a map point and the dashboard will focus that area automatically.</p>
+            </div>
+          </div>
+
+          <div class="stack-fields">
+            <div class="form-group">
+              <label for="country">Country</label>
+              <input type="text" id="country" placeholder="India" />
+            </div>
+
+            <div class="form-group">
+              <label for="state">State</label>
+              <input type="text" id="state" placeholder="Karnataka" />
+            </div>
+
+            <div class="form-group">
+              <label for="city">City</label>
+              <input type="text" id="city" placeholder="Bengaluru" />
+            </div>
+
+            <div class="form-group">
+              <label for="pincode">Pincode</label>
+              <input type="text" id="pincode" placeholder="560001" />
+            </div>
+
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-muted" type="button" onclick="clearLocation()">Clear</button>
+            <button class="btn btn-primary" type="button" id="analyzeBtn" onclick="submitWithLocation()">Submit</button>
+          </div>
+
+          <p class="map-selection-note" id="selectedMapNote">Click a marker, click a map point, or enter a location to select the area.</p>
+
+          <div class="alert" id="locationAlert"></div>
+        </article>
+
+        <article class="board-card map-card">
+          <div class="card-head">
+            <div>
+              <h2>Map</h2>
+              <p>Click a marker to inspect that disaster area, or click any map point to auto-select the nearest area.</p>
+            </div>
+          </div>
+
+          <div class="map-frame">
+            <div id="map"></div>
+          </div>
+
+          <div class="map-caption">
+            <span>Live disaster status and area focus</span>
+            <button class="text-link" type="button" onclick="loadMapData()">Refresh map</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-bottom">
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Selected Area Images</h2>
+              <p class="panel-note" id="selectedImagesNote">Choose a location to see the related disaster images.</p>
+            </div>
+            <span class="count-pill" id="imgCount">0</span>
+          </div>
+          <div class="images-grid" id="imgGrid"></div>
+        </article>
+
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Selected Area Information</h2>
+              <p class="panel-note" id="selectedAreaTitle">Choose a location on the map to inspect a disaster area.</p>
+            </div>
+            <button class="text-link" type="button" onclick="loadMapData()">Refresh</button>
+          </div>
+
+          <div class="area-summary" id="areaSummary">
+            <div class="empty-copy">Select a marker or map point to view the current disaster information for that area.</div>
+          </div>
+
+          <div class="tweets-list" id="tweetsFeed">
+            <div class="empty-copy">No updates yet.</div>
+          </div>
+        </article>
+
+        <article class="board-card">
+          <div class="card-head compact-head">
+            <h2>Intensity</h2>
+            <button class="text-link" type="button" onclick="filterMap('all')">Show all</button>
+          </div>
+          <div class="intensity-stack">
+            <div class="intensity-bar red" data-filter="red" onclick="filterMap('red')">
+              <span>Red</span>
+              <small>Disaster is still not under control.</small>
+              <div class="intensity-cities" id="redCities">
+                <span class="intensity-empty">Loading red alert cities...</span>
+              </div>
+            </div>
+            <div class="intensity-bar yellow" data-filter="yellow" onclick="filterMap('yellow')">
+              <span>Yellow</span>
+              <small>Situation is under control, but it still needs watching.</small>
+              <div class="intensity-cities" id="yellowCities">
+                <span class="intensity-empty">Loading yellow alert cities...</span>
+              </div>
+            </div>
+            <div class="intensity-bar green" data-filter="green" onclick="filterMap('green')">
+              <span>Green</span>
+              <small>Area is out of danger.</small>
+              <div class="intensity-cities" id="greenCities">
+                <span class="intensity-empty">Loading green alert cities...</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STATUS_BY_COLOR = {
+      red: {
+        title: "Not Under Control",
+        note: "Red means the situation is still not under control."
+      },
+      yellow: {
+        title: "Under Control",
+        note: "Yellow means the situation is under control, but it still needs watching."
+      },
+      green: {
+        title: "Out Of Danger",
+        note: "Green means the selected area is now out of danger."
+      }
+    };
+
+    const COLOR_BY_INTENSITY = {
+      high: "red",
+      medium: "yellow",
+      low: "green"
+    };
+
+    const HIGH_ALERT_TERMS = [
+      "earthquake", "tsunami", "hurricane", "tornado", "explosion", "flood",
+      "wildfire", "volcano", "avalanche", "cyclone", "disaster", "catastrophe",
+      "emergency", "evacuate", "casualties", "deaths", "collapsed", "destroyed",
+      "devastating", "critical", "urgent", "sos", "trapped", "fire", "blaze",
+      "drowning", "landslide", "storm", "blast", "rescue"
+    ];
+
+    const MEDIUM_ALERT_TERMS = [
+      "warning", "alert", "damage", "injured", "accident", "crash", "leak",
+      "power outage", "blackout", "missing", "shelter", "evacuation",
+      "disruption", "hazard", "risk", "threat", "caution", "unsafe",
+      "debris", "heavy rain", "strong wind", "fog", "hail"
+    ];
+
+    const KNOWN_AREAS = [
+      { city: "Mumbai", state: "Maharashtra", country: "India", lat: 19.0760, lng: 72.8777 },
+      { city: "Delhi", state: "Delhi", country: "India", lat: 28.6139, lng: 77.2090 },
+      { city: "Bengaluru", state: "Karnataka", country: "India", lat: 12.9716, lng: 77.5946 },
+      { city: "Chennai", state: "Tamil Nadu", country: "India", lat: 13.0827, lng: 80.2707 },
+      { city: "Kolkata", state: "West Bengal", country: "India", lat: 22.5726, lng: 88.3639 },
+      { city: "Hyderabad", state: "Telangana", country: "India", lat: 17.3850, lng: 78.4867 },
+      { city: "Pune", state: "Maharashtra", country: "India", lat: 18.5204, lng: 73.8567 },
+      { city: "Jaipur", state: "Rajasthan", country: "India", lat: 26.9124, lng: 75.7873 },
+      { city: "Ahmedabad", state: "Gujarat", country: "India", lat: 23.0225, lng: 72.5714 },
+      { city: "Lucknow", state: "Uttar Pradesh", country: "India", lat: 26.8467, lng: 80.9462 }
+    ];
+
+    let activeFilter = "all";
+    let allMarkers = [];
+    let allData = [];
+    let allSubmissions = [];
+    let currentSelection = null;
+    let formSelection = null;
+    let selectionMarker = null;
+
+    const map = L.map("map", { zoomControl: true }).setView([20.5937, 78.9629], 5);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+      maxZoom: 18
+    }).addTo(map);
+
+    map.on("click", (event) => {
+      handleMapSelection(event.latlng.lat, event.latlng.lng);
+    });
+
+    function resolveColor(item) {
+      if (item.color) {
+        return item.color;
+      }
+      return COLOR_BY_INTENSITY[item.intensity] || "green";
+    }
+
+    function getStatus(color) {
+      return STATUS_BY_COLOR[color] || STATUS_BY_COLOR.green;
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function normalizeRecord(item) {
+      const color = resolveColor(item);
+      return {
+        ...item,
+        lat: Number(item.lat),
+        lng: Number(item.lng),
+        color,
+        status: getStatus(color),
+        location: item.location || "Unknown location",
+        text: item.text || "",
+        classification: item.classification || "Disaster Update",
+        intensity: item.intensity || "low",
+        timestamp: item.timestamp || ""
+      };
+    }
+
+      function normalizeSubmission(item) {
+        const city = item.city || "";
+        const state = item.state || "";
+        const country = item.country || "";
+        return {
+        ...item,
+        city,
+        state,
+        country,
+        pincode: item.pincode || "",
+        details: item.details || "",
+        image_data: item.image_data || "",
+        name: item.name || "Field reporter",
+        timestamp: item.timestamp || "",
+          locationLabel: [city, state, country].filter(Boolean).join(", ")
+        };
+      }
+
+      function colorPriority(color) {
+        if (color === "red") return 3;
+        if (color === "yellow") return 2;
+        return 1;
+      }
+
+    function inferColorFromText(text) {
+      const normalized = normalizeText(text);
+      if (!normalized) {
+        return "green";
+      }
+
+      if (HIGH_ALERT_TERMS.some((term) => normalized.includes(term))) {
+        return "red";
+      }
+
+      if (MEDIUM_ALERT_TERMS.some((term) => normalized.includes(term))) {
+        return "yellow";
+      }
+
+      return "green";
+    }
+
+      function splitLocation(location) {
+        const parts = String(location || "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+
+      return {
+        city: parts[0] || "",
+        state: parts[1] || "",
+          country: parts[2] || ""
+        };
+      }
+
+      function buildAlertBoardData() {
+        const byLocation = new Map();
+
+        const registerRecord = (record) => {
+          const locationLabel = record?.location || record?.locationLabel || "";
+          const normalizedLocation = normalizeText(locationLabel);
+          if (!normalizedLocation) {
+            return;
+          }
+
+          const color = record?.color || inferColorFromText(record?.details || record?.text || "");
+          const parts = splitLocation(locationLabel);
+          const cityLabel = [parts.city, parts.state].filter(Boolean).join(", ") || locationLabel;
+          const timestamp = String(record?.timestamp || "");
+          const existing = byLocation.get(normalizedLocation);
+
+          if (!existing) {
+            byLocation.set(normalizedLocation, {
+              locationLabel,
+              cityLabel,
+              color,
+              count: 1,
+              timestamp
+            });
+            return;
+          }
+
+          existing.count += 1;
+          if (colorPriority(color) > colorPriority(existing.color)) {
+            existing.color = color;
+          }
+          if (timestamp && (!existing.timestamp || timestamp > existing.timestamp)) {
+            existing.timestamp = timestamp;
+          }
+        };
+
+        allData.forEach((item) => registerRecord(item));
+        allSubmissions.forEach((submission) => registerRecord({
+          location: submission.locationLabel,
+          color: inferColorFromText(submission.details),
+          timestamp: submission.timestamp,
+          details: submission.details
+        }));
+
+        const grouped = { red: [], yellow: [], green: [] };
+        Array.from(byLocation.values()).forEach((entry) => {
+          grouped[entry.color] = grouped[entry.color] || [];
+          grouped[entry.color].push(entry);
+        });
+
+        Object.keys(grouped).forEach((color) => {
+          grouped[color].sort((left, right) => {
+            if (right.count !== left.count) {
+              return right.count - left.count;
+            }
+            if ((right.timestamp || "") !== (left.timestamp || "")) {
+              return String(right.timestamp || "").localeCompare(String(left.timestamp || ""));
+            }
+            return left.cityLabel.localeCompare(right.cityLabel);
+          });
+        });
+
+        return grouped;
+      }
+
+      function renderIntensityBoard() {
+        const grouped = buildAlertBoardData();
+        const containers = {
+          red: document.getElementById("redCities"),
+          yellow: document.getElementById("yellowCities"),
+          green: document.getElementById("greenCities")
+        };
+
+        Object.entries(containers).forEach(([color, container]) => {
+          if (!container) {
+            return;
+          }
+
+          const items = (grouped[color] || []).slice(0, 3);
+          if (!items.length) {
+            container.innerHTML = `<span class="intensity-empty">No ${color} alert cities right now.</span>`;
+            return;
+          }
+
+          container.innerHTML = items.map((item, index) => `
+            <span class="intensity-city-row" data-location="${escapeHtml(item.locationLabel)}" tabindex="0" role="button">
+              <span class="intensity-rank">${index + 1}</span>
+              <span class="intensity-city-copy">
+                <span class="intensity-city-name">${escapeHtml(item.cityLabel)}</span>
+                <span class="intensity-city-meta">${item.count} update${item.count === 1 ? "" : "s"}</span>
+              </span>
+            </span>
+          `).join("");
+
+          container.querySelectorAll(".intensity-city-row").forEach((row) => {
+            const openSelectedCity = (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openAlertCity(row.dataset.location || "");
+            };
+
+            row.addEventListener("click", openSelectedCity);
+            row.addEventListener("keydown", (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                openSelectedCity(event);
+              }
+            });
+          });
+        });
+      }
+
+      function setLocationFields(parts) {
+        document.getElementById("country").value = parts.country || "";
+        document.getElementById("state").value = parts.state || "";
+      document.getElementById("city").value = parts.city || "";
+      if ("pincode" in parts) {
+        document.getElementById("pincode").value = parts.pincode || "";
+      }
+    }
+
+    function updateSelectedMapNote() {
+      const note = document.getElementById("selectedMapNote");
+      if (!formSelection) {
+        note.textContent = "Click a marker, click a map point, or enter a location to select the area.";
+        return;
+      }
+
+      note.textContent = `Selected area: ${formSelection.location}`;
+    }
+
+    function distanceKm(lat1, lng1, lat2, lng2) {
+      const toRad = (value) => (value * Math.PI) / 180;
+      const earthRadius = 6371;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c;
+    }
+
+    function findNearestDisaster(lat, lng) {
+      let match = null;
+
+      allData.forEach((item) => {
+        if (!Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) {
+          return;
+        }
+
+        const distance = distanceKm(lat, lng, Number(item.lat), Number(item.lng));
+        if (!match || distance < match.distance) {
+          match = { item, distance };
+        }
+      });
+
+      if (!match || match.distance > 60) {
+        return null;
+      }
+
+      return normalizeRecord(match.item);
+    }
+
+    function guessAreaFromMap(lat, lng) {
+      let match = null;
+
+      KNOWN_AREAS.forEach((area) => {
+        const distance = distanceKm(lat, lng, area.lat, area.lng);
+        if (!match || distance < match.distance) {
+          match = { area, distance };
+        }
+      });
+
+      if (!match || match.distance > 250) {
+        return null;
+      }
+
+      return match.area;
+    }
+
+    function showSelectionMarker(lat, lng) {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return;
+      }
+
+      if (selectionMarker) {
+        map.removeLayer(selectionMarker);
+      }
+
+      selectionMarker = L.circleMarker([lat, lng], {
+        radius: 13,
+        color: "#201a15",
+        weight: 2,
+        fillColor: "#a8c6ff",
+        fillOpacity: 0.55
+      }).addTo(map);
+    }
+
+    function makeIcon(color) {
+      const colors = {
+        red: "#d45449",
+        yellow: "#e0b432",
+        green: "#5d9f66"
+      };
+      const fill = colors[color] || colors.green;
+
+      return L.divIcon({
+        className: "map-pin-wrap",
+        html: `<div class="map-pin" style="background:${fill};"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 24],
+        popupAnchor: [0, -22]
+      });
+    }
+
+    function addMarker(item) {
+      if (!Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lng))) {
+        return null;
+      }
+
+      const record = normalizeRecord(item);
+      const marker = L.marker([record.lat, record.lng], { icon: makeIcon(record.color) })
+        .bindPopup(`
+          <div class="popup-copy">
+            <strong>${escapeHtml(record.status.title)}</strong>
+            <p>${escapeHtml(record.text || record.status.note)}</p>
+            <small>${escapeHtml(record.location)}</small>
+          </div>
+        `)
+        .on("click", () => {
+          selectArea(record, { forForm: true, fillFields: true, fly: false });
+        })
+        .addTo(map);
+
+      allMarkers.push({ marker, color: record.color, record });
+      return marker;
+    }
+
+    async function loadMapData() {
+      try {
+        const [mapResponse, submissionsResponse] = await Promise.all([
+          fetch("/map-data"),
+          fetch("/api/submissions")
+        ]);
+        allData = (await mapResponse.json()).map((item) => normalizeRecord(item));
+        allSubmissions = submissionsResponse.ok
+          ? (await submissionsResponse.json()).map((item) => normalizeSubmission(item))
+          : [];
+
+        allMarkers.forEach((item) => map.removeLayer(item.marker));
+          allMarkers = [];
+
+          allData.forEach((item) => addMarker(item));
+          applyFilter();
+          renderIntensityBoard();
+
+          if (currentSelection) {
+            const refreshedSelection = findRelatedTweets(currentSelection, 1)[0] || currentSelection;
+            selectArea(refreshedSelection, { forForm: Boolean(formSelection), fillFields: Boolean(formSelection), fly: false });
+        } else if (allData.length) {
+          selectArea(allData[0], { forForm: false, fillFields: false, fly: false });
+        } else {
+          renderSelectionSummary(null);
+          renderSelectedTweets(null);
+          renderSelectedImages(null);
+        }
+      } catch (error) {
+        showLocationAlert("Could not load map data right now.", "error");
+      }
+    }
+
+    function filterMap(color) {
+      activeFilter = activeFilter === color ? "all" : color;
+      applyFilter();
+    }
+
+    function applyFilter() {
+      allMarkers.forEach((item) => {
+        if (activeFilter === "all" || item.color === activeFilter) {
+          map.addLayer(item.marker);
+        } else {
+          map.removeLayer(item.marker);
+        }
+      });
+
+      document.querySelectorAll(".intensity-bar").forEach((button) => {
+        button.classList.toggle("active", button.dataset.filter === activeFilter);
+      });
+    }
+
+      const THEME_IMAGE_POOL = {
+      flood: [
+        "/static/demo_images/flood-road-1.jpg",
+        "/static/demo_images/flood-street-1.jpg",
+        "/static/demo_images/flood-rescue-1.jpg",
+        "/static/demo_images/flood-user-1.avif",
+        "/static/demo_images/india-weather-floods-1.avif",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Flood%20Water%20on%20Main%20road.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Water%20flood.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Rescue%20boat.jpg"
+      ],
+      cyclone: [
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20damage%20%2823538371118%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20damage%20%2837343174796%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20Damage%20%286093957294%29.jpg",
+        "/static/demo_images/flood-user-1.avif",
+        "/static/demo_images/flood-road-1.jpg",
+        "/static/demo_images/flood-rescue-1.jpg"
+      ],
+      landslide: [
+        "/static/demo_images/landslide-1.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Wikipedia%20Landslide.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/PSM%20V69%20D114%20A%20small%20landslide%20on%20a%20hillside%20road.png",
+        "/static/demo_images/flood-road-1.jpg"
+      ],
+      heatwave: [
+        "/static/demo_images/heat-wave-1.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Heat%20wave%20%289589012104%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Heat%20Wave%20%283747869661%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Heat%20wave.jpg"
+      ],
+      fire: [
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Wildfire%20Smoke%20-%2052959202838.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Wildfire%20Smoke%20%2852958907879%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Wildfire%20Smoke%20%2852958907984%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Wildfire%20Smoke%20%2852958129007%29.jpg"
+      ],
+      avalanche: [
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Snow%20blower%20v%20avalanche%20%2832281345297%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Small%20glide%20snow%20avalanche.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Caution%21%20Avalanche%21.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Ice%20on%20road.jpg"
+      ],
+      dust: [
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Phoenix%20Dust%20Storm%20%281%29%20%285999766358%29.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Dust%20storm.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Duststorm.jpg",
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Dust%20Storms%20%2812068809836%29.jpg"
+        ]
+      };
+
+      const CITY_HERO_IMAGE = {
+        "bengaluru, karnataka, india": "/static/demo_images/flood-street-1.jpg",
+        "chennai, tamil nadu, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20damage%20%2823538371118%29.jpg",
+        "mumbai, maharashtra, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Wildfire%20Smoke%20%2852958907984%29.jpg",
+        "new delhi, delhi, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Heat%20Wave%20%283747869661%29.jpg",
+        "guwahati, assam, india": "/static/demo_images/landslide-1.jpg",
+        "bhubaneswar, odisha, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20damage%20%2837343174796%29.jpg",
+        "kochi, kerala, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Rescue%20boat.jpg",
+        "dehradun, uttarakhand, india": "https://commons.wikimedia.org/wiki/Special:FilePath/PSM%20V69%20D114%20A%20small%20landslide%20on%20a%20hillside%20road.png",
+        "srinagar, jammu and kashmir, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Caution%21%20Avalanche%21.jpg",
+        "patna, bihar, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Flood%20Water%20on%20Main%20road.jpg",
+        "kolkata, west bengal, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Hurricane%20Damage%20%286093957294%29.jpg",
+        "jaipur, rajasthan, india": "https://commons.wikimedia.org/wiki/Special:FilePath/Phoenix%20Dust%20Storm%20%281%29%20%285999766358%29.jpg",
+        "hyderabad, telangana, india": "/static/demo_images/flood-road-1.jpg",
+        "visakhapatnam, andhra pradesh, india": "/static/demo_images/flood-rescue-1.jpg"
+      };
+
+    const IMAGE_VARIANT_STYLES = [
+      "center center",
+      "left center",
+      "right center",
+      "center top"
+    ];
+
+    function splitLocationParts(value) {
+      const parts = String(value || "")
+        .split(",")
+        .map((part) => normalizeText(part))
+        .filter(Boolean);
+
+      return {
+        city: parts[0] || "",
+        state: parts[1] || "",
+        country: parts[2] || ""
+      };
+    }
+
+    function strictLocationMatches(selection, locationLabel, city, state, country) {
+      const selectedLocation = typeof selection === "string"
+        ? selection
+        : selection && selection.location
+          ? selection.location
+          : "";
+
+      if (!selectedLocation) {
+        return false;
+      }
+
+      const selectionParts = splitLocationParts(selectedLocation);
+      const locationParts = splitLocationParts(locationLabel);
+      const candidate = {
+        city: normalizeText(city) || locationParts.city,
+        state: normalizeText(state) || locationParts.state,
+        country: normalizeText(country) || locationParts.country
+      };
+
+      if (selectionParts.city && candidate.city && selectionParts.city !== candidate.city) {
+        return false;
+      }
+      if (selectionParts.state && candidate.state && selectionParts.state !== candidate.state) {
+        return false;
+      }
+      if (selectionParts.country && candidate.country && selectionParts.country !== candidate.country) {
+        return false;
+      }
+
+      return Boolean(
+        (selectionParts.city && candidate.city) ||
+        (selectionParts.state && candidate.state) ||
+        (selectionParts.country && candidate.country)
+      );
+    }
+
+    function locationMatchesSelection(selectionLocation, locationLabel, city, state, country) {
+      return strictLocationMatches(selectionLocation, locationLabel, city, state, country);
+    }
+
+    function findRelatedSubmissions(selection, limit = 6) {
+      if (!selection) {
+        return [];
+      }
+
+      return allSubmissions.filter((submission) => {
+        return locationMatchesSelection(
+          selection.location,
+          submission.locationLabel,
+          submission.city,
+          submission.state,
+          submission.country
+        );
+      }).slice(0, limit);
+    }
+
+    function findSubmissionByFields(country, state, city) {
+      const exact = allSubmissions.find((submission) => {
+        return locationMatchesSelection(
+          [city, state, country].filter(Boolean).join(", "),
+          submission.locationLabel,
+          submission.city,
+          submission.state,
+          submission.country
+        );
+      });
+
+      return exact || null;
+    }
+
+    function findStoredInfoForLocation(locationLabel) {
+      const submission = findBestSubmissionForLocation(locationLabel);
+      if (submission) {
+        return {
+          details: submission.details,
+          createdAt: submission.timestamp,
+          city: submission.city,
+          state: submission.state,
+          country: submission.country,
+          locationLabel: submission.locationLabel
+        };
+      }
+
+      const target = normalizeText(locationLabel);
+      return readStoredImages().find((image) => {
+        const imageLocation = normalizeText(image.locationLabel);
+        const imageCity = normalizeText(image.city);
+        return (imageLocation && (target.includes(imageLocation) || imageLocation.includes(target))) ||
+          (imageCity && target.includes(imageCity));
+      }) || null;
+    }
+
+    function findBestSubmissionForLocation(locationLabel) {
+      return allSubmissions.find((submission) => {
+        return locationMatchesSelection(
+          locationLabel,
+          submission.locationLabel,
+          submission.city,
+          submission.state,
+          submission.country
+        );
+      }) || null;
+    }
+
+    function buildSelectionFromSubmission(submission, area = null, overrides = {}) {
+      const locationLabel = [
+        overrides.city || submission.city,
+        overrides.state || submission.state,
+        overrides.country || submission.country
+      ].filter(Boolean).join(", ") || submission.locationLabel || "Selected area";
+      const storedInfo = findStoredInfoForLocation(locationLabel);
+      const detailText = submission.details || storedInfo?.details || "No detailed disaster report is stored for this area yet.";
+      const color = inferColorFromText(detailText);
+
+      return normalizeRecord({
+        location: locationLabel,
+        lat: area ? area.lat : 20.5937,
+        lng: area ? area.lng : 78.9629,
+        text: detailText,
+        classification: "Field Report",
+        intensity: color === "red" ? "high" : color === "yellow" ? "medium" : "low",
+        color,
+        timestamp: submission.timestamp || storedInfo?.createdAt || new Date().toISOString()
+      });
+    }
+
+    function buildKnownAreaSelection(area, overrides = {}) {
+      const locationLabel = [
+        overrides.city || area.city,
+        overrides.state || area.state,
+        overrides.country || area.country
+      ].filter(Boolean).join(", ");
+      const matchedSubmission = findBestSubmissionForLocation(locationLabel);
+      const storedInfo = findStoredInfoForLocation(locationLabel);
+      const detailText = matchedSubmission?.details || storedInfo?.details || "No disaster information is stored for this area yet.";
+      const color = matchedSubmission
+        ? inferColorFromText(matchedSubmission.details)
+        : storedInfo
+          ? inferColorFromText(storedInfo.details)
+          : "green";
+
+      return normalizeRecord({
+        location: locationLabel,
+        lat: area.lat,
+        lng: area.lng,
+        text: detailText,
+        classification: matchedSubmission ? "Field Report" : storedInfo ? "Area Evidence" : "Selected Area",
+        intensity: color === "red" ? "high" : color === "yellow" ? "medium" : "low",
+        color,
+        timestamp: matchedSubmission?.timestamp || storedInfo?.createdAt || new Date().toISOString()
+      });
+    }
+
+    function buildFallbackSelection(lat, lng) {
+      const guessed = guessAreaFromMap(lat, lng);
+      if (guessed) {
+        return buildKnownAreaSelection(guessed);
+      }
+
+      return normalizeRecord({
+        location: `Selected point (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+        lat,
+        lng,
+        text: "No disaster information is stored for this selected map point yet.",
+        classification: "Selected Area",
+        intensity: "low",
+        color: "green",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    function findAreaByFields(country, state, city) {
+      const countryText = normalizeText(country);
+      const stateText = normalizeText(state);
+      const cityText = normalizeText(city);
+
+      const exactMatch = allData.find((item) => {
+        const location = normalizeText(item.location);
+        return (!cityText || location.includes(cityText)) &&
+          (!stateText || location.includes(stateText)) &&
+          (!countryText || location.includes(countryText));
+      });
+
+      if (exactMatch) {
+        return exactMatch;
+      }
+
+      return allData.find((item) => {
+        const location = normalizeText(item.location);
+        return (cityText && location.includes(cityText)) ||
+          (stateText && location.includes(stateText)) ||
+          (countryText && location.includes(countryText));
+      }) || null;
+    }
+
+    function guessAreaFromFields(country, state, city) {
+      const countryText = normalizeText(country);
+      const stateText = normalizeText(state);
+      const cityText = normalizeText(city);
+
+      const exactMatch = KNOWN_AREAS.find((area) => {
+        return (!cityText || normalizeText(area.city).includes(cityText) || cityText.includes(normalizeText(area.city))) &&
+          (!stateText || normalizeText(area.state).includes(stateText) || stateText.includes(normalizeText(area.state))) &&
+          (!countryText || normalizeText(area.country).includes(countryText) || countryText.includes(normalizeText(area.country)));
+      });
+
+      if (exactMatch) {
+        return exactMatch;
+      }
+
+      return KNOWN_AREAS.find((area) => {
+        return (cityText && (normalizeText(area.city).includes(cityText) || cityText.includes(normalizeText(area.city)))) ||
+          (stateText && (normalizeText(area.state).includes(stateText) || stateText.includes(normalizeText(area.state))));
+      }) || null;
+    }
+
+    function handleMapSelection(lat, lng) {
+      const nearbyDisaster = findNearestDisaster(lat, lng);
+
+      if (nearbyDisaster) {
+        selectArea(nearbyDisaster, { forForm: true, fillFields: true, fly: true });
+        showLocationAlert("Nearest disaster area selected from the map.", "success");
+        return;
+      }
+
+      const fallbackSelection = buildFallbackSelection(lat, lng);
+      const parts = splitLocation(fallbackSelection.location);
+      setLocationFields({
+        country: parts.country,
+        state: parts.state,
+        city: parts.city,
+        pincode: ""
+      });
+      selectArea(fallbackSelection, { forForm: true, fillFields: false, fly: true });
+      showLocationAlert("Map point selected automatically. Showing the available disaster information for this area.", "success");
+    }
+
+    function selectArea(record, options = {}) {
+      const normalized = normalizeRecord(record);
+      currentSelection = normalized;
+
+      if (options.forForm) {
+        formSelection = normalized;
+      }
+
+      if (options.fillFields) {
+        const parts = splitLocation(normalized.location);
+        setLocationFields({
+          country: parts.country,
+          state: parts.state,
+          city: parts.city,
+          pincode: document.getElementById("pincode").value.trim()
+        });
+      }
+
+      updateSelectedMapNote();
+      showSelectionMarker(normalized.lat, normalized.lng);
+      renderSelectionSummary(normalized);
+      renderSelectedTweets(normalized);
+      renderSelectedImages(normalized);
+
+      if (options.fly !== false && Number.isFinite(normalized.lat) && Number.isFinite(normalized.lng)) {
+        map.flyTo([normalized.lat, normalized.lng], 8, { animate: true, duration: 1 });
+      }
+    }
+
+      function findRelatedTweets(selection, limit = 6) {
+        if (!selection) {
+          return [];
+        }
+
+        const selectionLocation = normalizeText(selection.location);
+        const related = allData.filter((item) => {
+          const itemLocation = normalizeText(item.location);
+          return itemLocation && selectionLocation &&
+            (itemLocation.includes(selectionLocation) || selectionLocation.includes(itemLocation));
+        });
+
+        return related.slice(0, limit);
+      }
+
+      function compactDisasterText(text, maxLength = 150) {
+        const raw = String(text || "").replace(/\s+/g, " ").trim();
+        if (!raw) {
+          return "No detailed disaster report is available for this area yet.";
+        }
+
+        const firstSentence = raw.split(/(?<=[.!?])\s+/)[0].trim();
+        const cleaned = firstSentence
+          .replace(/^incident:\s*/i, "")
+          .replace(/^impact:\s*/i, "")
+          .replace(/^current situation:\s*/i, "")
+          .replace(/^advisory:\s*/i, "");
+
+        if (cleaned.length <= maxLength) {
+          return cleaned;
+        }
+
+        return `${cleaned.slice(0, maxLength - 3).trim()}...`;
+      }
+
+      function renderSelectionSummary(selection) {
+      const summary = document.getElementById("areaSummary");
+      const title = document.getElementById("selectedAreaTitle");
+
+      if (!selection) {
+        title.textContent = "Choose a location on the map to inspect a disaster area.";
+        summary.innerHTML = '<div class="empty-copy">Select a marker or map point to view the current disaster information for that area.</div>';
+        return;
+      }
+
+      const relatedTweets = findRelatedTweets(selection, 4);
+      const relatedSubmissions = findRelatedSubmissions(selection, 3);
+      const primaryReport = relatedSubmissions[0] || null;
+      const primaryUpdate = relatedTweets[0] || null;
+        const detailText = compactDisasterText(
+          primaryReport?.details || primaryUpdate?.text || selection.text
+        );
+      const currentSituation = primaryUpdate?.status?.note || selection.status.note;
+      const latestTimestamp = primaryReport?.timestamp || primaryUpdate?.timestamp || selection.timestamp;
+      const timeText = latestTimestamp
+        ? new Date(latestTimestamp).toLocaleString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
+          })
+        : "No time";
+        const latestUpdates = [
+          ...relatedSubmissions.map((submission) => ({
+            kind: "report",
+            text: compactDisasterText(submission.details || "Field report submitted.", 90),
+            timestamp: submission.timestamp,
+            label: submission.name || "Field report"
+          })),
+          ...relatedTweets.map((tweet) => ({
+            kind: "tweet",
+            text: compactDisasterText(tweet.text || "Mapped disaster update.", 90),
+            timestamp: tweet.timestamp,
+            label: tweet.classification || "Mapped update"
+          }))
+        ]
+          .sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")))
+          .slice(0, 2);
+        const latestReportText = primaryReport
+          ? compactDisasterText(`${primaryReport.name || "Field reporter"} reported from ${primaryReport.locationLabel || selection.location}.`, 80)
+          : "No direct field report is stored for this area yet.";
+      const disasterFacts = [
+        `Field reports: ${relatedSubmissions.length}`,
+        `Mapped updates: ${relatedTweets.length}`,
+        `Latest status: ${selection.status.title}`,
+        `Pincode: ${primaryReport?.pincode || document.getElementById("pincode").value.trim() || "Not available"}`
+      ];
+
+      title.textContent = selection.location;
+      summary.innerHTML = `
+        <div class="area-summary-top">
+          <span class="status-chip ${selection.color}">${escapeHtml(selection.status.title)}</span>
+          <span class="area-summary-time">${escapeHtml(timeText)}</span>
+        </div>
+        <h3>${escapeHtml(selection.location)}</h3>
+        <p>${escapeHtml(currentSituation)}</p>
+        <div class="area-facts">
+          <div class="area-fact area-fact-wide">
+            <strong>What happened</strong>
+            <p>${escapeHtml(detailText)}</p>
+          </div>
+          <div class="area-fact">
+            <strong>Current situation</strong>
+            <p>${escapeHtml(selection.status.note)}</p>
+          </div>
+          <div class="area-fact">
+            <strong>Disaster data</strong>
+            <ul class="area-list">
+              ${disasterFacts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="area-fact area-fact-wide">
+            <strong>Latest report</strong>
+            <p>${escapeHtml(latestReportText)}</p>
+          </div>
+          <div class="area-fact area-fact-wide">
+            <strong>Recent updates</strong>
+            <div class="area-updates">
+              ${latestUpdates.length ? latestUpdates.map((update) => `
+                <div class="area-update-row">
+                  <span class="area-update-label">${escapeHtml(update.label)}</span>
+                  <span class="area-update-text">${escapeHtml(update.text)}</span>
+                </div>
+              `).join("") : '<p>No recent disaster updates are available for this area yet.</p>'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSelectedTweets(selection) {
+      const feed = document.getElementById("tweetsFeed");
+      const relatedTweets = findRelatedTweets(selection, 6);
+
+      if (!selection) {
+        feed.innerHTML = '<div class="empty-copy">No area selected yet.</div>';
+        return;
+      }
+
+      if (!relatedTweets.length) {
+        feed.innerHTML = `<div class="empty-copy">No mapped updates found for ${escapeHtml(selection.location)} yet.</div>`;
+        return;
+      }
+
+      feed.innerHTML = relatedTweets.map((item) => {
+        const time = item.timestamp
+          ? new Date(item.timestamp).toLocaleString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              month: "short",
+              day: "numeric"
+            })
+          : "No time";
+
+        return `
+          <div class="tweet-card" onclick="selectAreaByIndex(${item.id || 0}, ${item.lat}, ${item.lng})">
+            <p>${escapeHtml(item.text || "No text available.")}</p>
+            <div class="tweet-meta">
+              <span class="status-chip ${item.color}">${escapeHtml(item.status.title)}</span>
+              <span>${escapeHtml(time)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function readStoredImages() {
+      try {
+        return JSON.parse(localStorage.getItem("dam_uploaded_images") || "[]");
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function inferDisasterTheme(selection) {
+      const text = normalizeText(selection?.text || "");
+
+      if (text.includes("landslide") || text.includes("slope") || text.includes("debris")) return "landslide";
+      if (text.includes("cyclone") || text.includes("storm") || text.includes("coastal") || text.includes("wind damage")) return "cyclone";
+      if (text.includes("heatwave") || text.includes("heat wave") || text.includes("temperature") || text.includes("dehydration")) return "heatwave";
+      if (text.includes("fire") || text.includes("wildfire") || text.includes("smoke") || text.includes("flame")) return "fire";
+      if (text.includes("avalanche") || text.includes("snow")) return "avalanche";
+      if (text.includes("dust storm") || text.includes("dust") || text.includes("visibility")) return "dust";
+      return "flood";
+    }
+
+      function buildThemedGallery(selection) {
+        const theme = inferDisasterTheme(selection);
+        const pool = THEME_IMAGE_POOL[theme] || THEME_IMAGE_POOL.flood;
+        const seed = normalizeText(selection?.location || theme || "dam");
+        const offset = Array.from(seed).reduce((total, char, index) => total + (char.charCodeAt(0) * (index + 1)), 0) % pool.length;
+        const rotated = pool.slice(offset).concat(pool.slice(0, offset));
+
+        return rotated.slice(0, 1).map((src, index) => ({
+          src,
+          locationLabel: selection.location,
+          objectPosition: IMAGE_VARIANT_STYLES[index % IMAGE_VARIANT_STYLES.length]
+        }));
+      }
+
+      function getCityHeroImage(selection) {
+        if (!selection) {
+          return "";
+        }
+
+        const normalizedLocation = normalizeText(selection.location);
+        if (CITY_HERO_IMAGE[normalizedLocation]) {
+          return CITY_HERO_IMAGE[normalizedLocation];
+        }
+
+        const parts = splitLocationParts(selection.location);
+        const cityStateCountryKey = [parts.city, parts.state, parts.country].filter(Boolean).join(", ");
+        return CITY_HERO_IMAGE[cityStateCountryKey] || "";
+      }
+
+      function ensureFourImages(images, selection) {
+        const combined = [];
+        const seen = new Set();
+
+      [...images, ...buildThemedGallery(selection)].forEach((item) => {
+        if (!item || !item.src) {
+          return;
+        }
+
+        const normalizedSrc = String(item.src).trim();
+          if (!normalizedSrc || seen.has(normalizedSrc) || combined.length >= 1) {
+            return;
+          }
+
+        seen.add(normalizedSrc);
+        combined.push({
+          ...item,
+          src: normalizedSrc,
+          locationLabel: item.locationLabel || selection.location,
+          objectPosition: item.objectPosition || IMAGE_VARIANT_STYLES[combined.length % IMAGE_VARIANT_STYLES.length]
+        });
+      });
+
+        return combined.slice(0, 1);
+      }
+
+      function getSelectionImages(selection) {
+        if (!selection) {
+          return [];
+        }
+
+        const heroImage = getCityHeroImage(selection);
+        if (heroImage) {
+          return ensureFourImages([
+            {
+              src: heroImage,
+              locationLabel: selection.location,
+              objectPosition: "center center"
+            }
+          ], selection);
+        }
+
+        const submissionImages = allSubmissions
+        .filter((submission) => strictLocationMatches(
+          selection,
+          submission.locationLabel,
+          submission.city,
+          submission.state,
+          submission.country
+        ))
+        .filter((submission) => submission.image_data)
+        .map((submission) => ({
+          src: submission.image_data,
+          locationLabel: submission.locationLabel || selection.location,
+          objectPosition: "center center"
+        }));
+
+      const storedMatches = readStoredImages()
+        .filter((image) => imageMatchesSelection(image, selection))
+        .map((image) => ({
+          src: image.src,
+          locationLabel: selection.location,
+          objectPosition: "center center"
+        }));
+
+      return ensureFourImages(
+        [...submissionImages, ...storedMatches],
+        selection
+      );
+    }
+
+    function imageMatchesSelection(image, selection) {
+      if (!selection) {
+        return false;
+      }
+
+      const imageLocation = normalizeText(image.locationLabel);
+      const imageCity = normalizeText(image.city);
+      const imageState = normalizeText(image.state);
+      const imageCountry = normalizeText(image.country);
+
+      return strictLocationMatches(
+        selection,
+        imageLocation,
+        imageCity,
+        imageState,
+        imageCountry
+      );
+    }
+
+    function renderSelectedImages(selection) {
+      const grid = document.getElementById("imgGrid");
+      const count = document.getElementById("imgCount");
+      const note = document.getElementById("selectedImagesNote");
+      const matches = getSelectionImages(selection);
+
+        if (!selection) {
+          note.textContent = "Choose a location to see the related disaster images.";
+          count.textContent = "0";
+          grid.innerHTML = '<div class="image-tile placeholder"></div>';
+          return;
+        }
+
+      note.textContent = `Images and proof for ${selection.location}.`;
+      count.textContent = String(matches.length);
+
+        if (!matches.length) {
+          grid.innerHTML = '<div class="image-tile placeholder"></div>';
+          return;
+        }
+
+      const tiles = matches.map((image) => `
+        <div class="image-tile">
+          <img src="${image.src}" alt="Selected area evidence" style="object-position: ${image.objectPosition || "center center"};" />
+          <div class="image-tile-caption">${escapeHtml(image.locationLabel || selection.location)}</div>
+        </div>
+      `);
+
+        while (tiles.length < 1) {
+          tiles.push('<div class="image-tile placeholder"></div>');
+        }
+
+      grid.innerHTML = tiles.join("");
+    }
+
+    function locateEnteredArea() {
+      const country = document.getElementById("country").value.trim();
+      const state = document.getElementById("state").value.trim();
+      const city = document.getElementById("city").value.trim();
+      const button = document.getElementById("analyzeBtn");
+
+      hideLocationAlert();
+
+      if (!country && !state && !city) {
+        showLocationAlert("Enter at least a city, state, or country.", "error");
+        return;
+      }
+
+      formSelection = null;
+      updateSelectedMapNote();
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span> Locating';
+
+      try {
+        const mappedArea = findAreaByFields(country, state, city);
+        if (mappedArea) {
+          selectArea(mappedArea, { forForm: true, fillFields: true, fly: true });
+          showLocationAlert("Location found. Showing disaster information for this area.", "success");
+          return;
+        }
+
+        const matchedSubmission = findSubmissionByFields(country, state, city);
+        if (matchedSubmission) {
+          const area = guessAreaFromFields(matchedSubmission.country, matchedSubmission.state, matchedSubmission.city) ||
+            guessAreaFromFields(country, state, city);
+          const selection = buildSelectionFromSubmission(matchedSubmission, area, { country, state, city });
+          selectArea(selection, { forForm: true, fillFields: true, fly: true });
+          showLocationAlert("Location found from reports. Showing the disaster details for this area.", "success");
+          return;
+        }
+
+        const knownArea = guessAreaFromFields(country, state, city);
+        if (knownArea) {
+          const fallbackSelection = buildKnownAreaSelection(knownArea, { country, state, city });
+          selectArea(fallbackSelection, { forForm: true, fillFields: true, fly: true });
+          showLocationAlert("Location selected. Showing the available information for this area.", "success");
+          return;
+        }
+
+        showLocationAlert("This location is not available in the current demo map yet. Try a known city or click the map.", "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Submit";
+      }
+    }
+
+    async function submitWithLocation() {
+      locateEnteredArea();
+    }
+
+    function clearLocation() {
+      ["country", "state", "city", "pincode"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+
+      formSelection = null;
+      updateSelectedMapNote();
+      hideLocationAlert();
+    }
+
+    function showLocationAlert(message, type) {
+      const alertBox = document.getElementById("locationAlert");
+      alertBox.textContent = message;
+      alertBox.className = `alert alert-${type}`;
+      alertBox.style.display = "block";
+    }
+
+    function hideLocationAlert() {
+      document.getElementById("locationAlert").style.display = "none";
+    }
+
+      function selectAreaByIndex(id, lat, lng) {
+        const selected = allData.find((item) => String(item.id) === String(id)) ||
+          findNearestDisaster(Number(lat), Number(lng));
+
+        if (!selected) {
+        return;
+      }
+
+        selectArea(selected, { forForm: true, fillFields: true, fly: true });
+      }
+
+      function openAlertCity(locationLabel) {
+        if (!locationLabel) {
+          return;
+        }
+
+        const selectedRecord = allData.find((item) => {
+          return strictLocationMatches(locationLabel, item.location, "", "", "");
+        });
+
+        if (selectedRecord) {
+          selectArea(selectedRecord, { forForm: true, fillFields: true, fly: true });
+          return;
+        }
+
+        const submission = allSubmissions.find((item) => {
+          return strictLocationMatches(locationLabel, item.locationLabel, item.city, item.state, item.country);
+        });
+
+        const parts = splitLocation(locationLabel);
+        const guessedArea = guessAreaFromFields(parts.country, parts.state, parts.city);
+
+        if (submission) {
+          const selection = buildSelectionFromSubmission(submission, guessedArea, parts);
+          selectArea(selection, { forForm: true, fillFields: true, fly: true });
+          return;
+        }
+
+        if (guessedArea) {
+          const selection = buildKnownAreaSelection(guessedArea, parts);
+          selectArea(selection, { forForm: true, fillFields: true, fly: true });
+          return;
+        }
+
+        showLocationAlert("Could not open that city right now.", "error");
+      }
+
+      function focusCurrentSelection() {
+        if (currentSelection && Number.isFinite(currentSelection.lat) && Number.isFinite(currentSelection.lng)) {
+          map.flyTo([currentSelection.lat, currentSelection.lng], 8, { animate: true, duration: 1 });
+        return;
+      }
+
+      map.flyTo([20.5937, 78.9629], 5, { animate: true, duration: 1 });
+    }
+
+    window.addEventListener("storage", () => {
+      renderSelectedImages(currentSelection);
+    });
+
+    window.addEventListener("load", async () => {
+      updateSelectedMapNote();
+      await loadMapData();
+      map.invalidateSize();
+    });
+
+    window.addEventListener("resize", () => {
+      map.invalidateSize();
+    });
+  </script>
+</body>
+</html>

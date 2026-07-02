@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAM - Submission</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-rail">
+      <div class="rail-brand">
+        <div class="brand-mark"></div>
+        <div>
+          <strong>DAM</strong>
+          <small>Field Monitor</small>
+        </div>
+      </div>
+
+      <nav class="rail-nav">
+        <a class="rail-link" href="/home">
+          <span class="rail-box"></span>
+          <span>Home</span>
+        </a>
+        <a class="rail-link" href="/dashboard">
+          <span class="rail-box"></span>
+          <span>Disaster Dashboard</span>
+        </a>
+        <a class="rail-link active" href="/submission">
+          <span class="rail-box"></span>
+          <span>Submission</span>
+        </a>
+        {% if session.get('is_admin') %}
+        <a class="rail-link" href="/admin">
+          <span class="rail-box"></span>
+          <span>Admin Panel</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <a class="rail-link logout-link" href="/logout">
+        <span class="rail-box"></span>
+        <span>Logout</span>
+      </a>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <p class="page-kicker">DAM</p>
+          <h1>Submission</h1>
+        </div>
+
+        <div class="header-actions">
+          {% if session.get('is_admin') %}
+          <a class="header-action" href="/admin">
+            <span class="header-action-box"></span>
+            <span>Admin</span>
+          </a>
+          {% endif %}
+          <a class="header-action" href="/home">
+            <span class="header-action-box"></span>
+            <span>Home</span>
+          </a>
+
+          <button class="profile-card" type="button">
+            <div class="profile-icon"></div>
+            <div>
+              <strong>{{ session.get('email', 'Field Team') }}</strong>
+              <div class="profile-lines">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      <section class="submission-layout">
+        <div class="submission-left">
+          <article class="board-card">
+            <div class="card-head">
+              <div>
+                <h2>Image</h2>
+                <p>Keep the upload area large like the wireframe so it reads as the proof block.</p>
+              </div>
+            </div>
+
+            <div class="upload-frame" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+              <img id="imgPreview" alt="Evidence preview" />
+              <div class="upload-helper" id="uploadHelper">
+                <strong>Image</strong>
+                <span>Click here to place the evidence image.</span>
+              </div>
+            </div>
+
+            <input type="file" id="fileInput" accept="image/*" hidden onchange="previewImage(event)" />
+
+            <div class="btn-row">
+              <button class="btn btn-secondary" type="button" onclick="document.getElementById('fileInput').click()">Upload</button>
+            </div>
+          </article>
+
+          <article class="board-card">
+            <div class="card-head">
+              <div>
+                <h2>Details</h2>
+                <p>Write the event notes in the large details block from your sketch.</p>
+              </div>
+            </div>
+
+            <div class="lined-panel">
+              <textarea id="details" rows="10" placeholder="Describe what happened, who is affected, and what support is needed."></textarea>
+            </div>
+          </article>
+        </div>
+
+        <div class="submission-right">
+          <article class="board-card">
+            <div class="card-head">
+              <div>
+                <h2>Location Details</h2>
+                <p>Use the same stacked location fields that appear in your drawing.</p>
+              </div>
+            </div>
+
+            <div class="stack-fields">
+              <div class="form-group">
+                <label for="country">Country</label>
+                <input type="text" id="country" placeholder="India" />
+              </div>
+
+              <div class="form-group">
+                <label for="state">State</label>
+                <input type="text" id="state" placeholder="Karnataka" />
+              </div>
+
+              <div class="form-group">
+                <label for="city">City</label>
+                <input type="text" id="city" placeholder="Bengaluru" />
+              </div>
+
+              <div class="form-group">
+                <label for="pincode">Pincode</label>
+                <input type="text" id="pincode" placeholder="560001" />
+              </div>
+            </div>
+          </article>
+
+          <article class="board-card">
+            <div class="card-head">
+              <div>
+                <h2>Sender Details</h2>
+                <p>Collect the sender information in one clean block.</p>
+              </div>
+            </div>
+
+            <div class="stack-fields">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" placeholder="Your name" />
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@example.com" />
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" placeholder="+91 9999999999" />
+              </div>
+            </div>
+
+            <div class="alert alert-error" id="errAlert"></div>
+            <div class="alert alert-success" id="okAlert"></div>
+
+            <div class="submit-actions">
+              <button class="btn btn-primary" type="button" id="submitBtn" onclick="handleSubmit()">Submit</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let selectedImageDataUrl = "";
+
+    function previewImage(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        selectedImageDataUrl = loadEvent.target.result;
+        document.getElementById("imgPreview").src = selectedImageDataUrl;
+        document.getElementById("uploadZone").classList.add("has-image");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handleSubmit() {
+      const button = document.getElementById("submitBtn");
+      const imageData = selectedImageDataUrl
+        ? await createThumbnail(selectedImageDataUrl, 640, 0.82)
+        : "";
+      const payload = {
+        name: document.getElementById("name").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        country: document.getElementById("country").value.trim(),
+        state: document.getElementById("state").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        pincode: document.getElementById("pincode").value.trim(),
+        details: document.getElementById("details").value.trim(),
+        image_data: imageData
+      };
+
+      hideAlerts();
+
+      if (!payload.name || !payload.email) {
+        showAlert("errAlert", "Name and email are required.");
+        return;
+      }
+
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span> Submitting';
+
+      try {
+        const response = await fetch("/api/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          showAlert("errAlert", "Submission failed. Please try again.");
+          return;
+        }
+
+        await saveSubmissionImage(payload, imageData);
+        showAlert("okAlert", "Report submitted successfully.");
+        clearForm();
+      } catch (error) {
+        showAlert("errAlert", "Server error. Is Flask running?");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Submit";
+      }
+    }
+
+    function showAlert(id, message) {
+      const alertBox = document.getElementById(id);
+      alertBox.textContent = message;
+      alertBox.style.display = "block";
+    }
+
+    function hideAlerts() {
+      document.getElementById("errAlert").style.display = "none";
+      document.getElementById("okAlert").style.display = "none";
+    }
+
+    function clearForm() {
+      ["name", "email", "phone", "country", "state", "city", "pincode", "details"].forEach((id) => {
+        document.getElementById(id).value = "";
+      });
+
+      document.getElementById("fileInput").value = "";
+      document.getElementById("imgPreview").src = "";
+      document.getElementById("uploadZone").classList.remove("has-image");
+      selectedImageDataUrl = "";
+    }
+
+    async function saveSubmissionImage(payload, preparedImage) {
+      if (!preparedImage) {
+        return;
+      }
+
+      try {
+        const current = JSON.parse(localStorage.getItem("dam_uploaded_images") || "[]");
+        const locationLabel = [payload.city, payload.state, payload.country].filter(Boolean).join(", ");
+        current.unshift({
+          src: preparedImage,
+          createdAt: new Date().toISOString(),
+          country: payload.country,
+          state: payload.state,
+          city: payload.city,
+          pincode: payload.pincode,
+          details: payload.details,
+          locationLabel: locationLabel || "Selected area"
+        });
+        localStorage.setItem("dam_uploaded_images", JSON.stringify(current.slice(0, 4)));
+      } catch (error) {
+        console.error("Image cache failed", error);
+      }
+    }
+
+    function createThumbnail(dataUrl, maxSide, quality) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+          const width = Math.max(1, Math.round(image.width * scale));
+          const height = Math.max(1, Math.round(image.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+
+          const context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+    }
+  </script>
+</body>
+</html>

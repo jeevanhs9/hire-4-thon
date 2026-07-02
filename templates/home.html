@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAM - Home</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-rail">
+      <div class="rail-brand">
+        <div class="brand-mark"></div>
+        <div>
+          <strong>DAM</strong>
+          <small>Field Monitor</small>
+        </div>
+      </div>
+
+      <nav class="rail-nav">
+        <a class="rail-link active" href="/home">
+          <span class="rail-box"></span>
+          <span>Home</span>
+        </a>
+        <a class="rail-link" href="/dashboard">
+          <span class="rail-box"></span>
+          <span>Disaster Dashboard</span>
+        </a>
+        <a class="rail-link" href="/submission">
+          <span class="rail-box"></span>
+          <span>Submission</span>
+        </a>
+        {% if session.get('is_admin') %}
+        <a class="rail-link" href="/admin">
+          <span class="rail-box"></span>
+          <span>Admin Panel</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <a class="rail-link logout-link" href="/logout">
+        <span class="rail-box"></span>
+        <span>Logout</span>
+      </a>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <p class="page-kicker">DAM</p>
+          <h1>Home</h1>
+        </div>
+
+        <div class="header-actions">
+          {% if session.get('is_admin') %}
+          <a class="header-action" href="/admin">
+            <span class="header-action-box"></span>
+            <span>Admin</span>
+          </a>
+          {% endif %}
+          <a class="header-action" href="/dashboard">
+            <span class="header-action-box"></span>
+            <span>Dashboard</span>
+          </a>
+
+          <button class="profile-card" type="button">
+            <div class="profile-icon"></div>
+            <div>
+              <strong>{{ session.get('email', 'Field Team') }}</strong>
+              <div class="profile-lines">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      <section class="home-hero-grid">
+        <article class="board-card home-hero-card">
+          <p class="page-kicker">Disaster Analysis Model</p>
+          <h2>Disaster information for users, teams, and responders.</h2>
+          <p class="home-lead">
+            DAM helps users understand what happened in a disaster, what the current situation is,
+            and what the latest mapped updates and field reports say about the selected area.
+          </p>
+
+          <div class="home-hero-actions">
+            <a class="btn btn-primary" href="/dashboard">Open Disaster Dashboard</a>
+            <a class="btn btn-secondary" href="/submission">Submit Field Report</a>
+          </div>
+        </article>
+
+        <article class="board-card home-brief-card">
+          <div class="card-head">
+            <div>
+              <h2>Project Purpose</h2>
+              <p>DAM is built to provide full disaster information to users, not just map pins.</p>
+            </div>
+          </div>
+
+          <div class="home-brief-list">
+            <div class="home-brief-item">
+              <strong>What happened</strong>
+              <p>See disaster reports, mapped updates, and selected-area information in one place.</p>
+            </div>
+            <div class="home-brief-item">
+              <strong>Current situation</strong>
+              <p>Red, yellow, and green help explain whether the disaster is critical, under control, or out of danger.</p>
+            </div>
+            <div class="home-brief-item">
+              <strong>Action flow</strong>
+              <p>Use the dashboard to inspect areas and the submission page to upload images and field details.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="home-stats-grid">
+        <article class="board-card stat-card">
+          <span class="stat-label">Mapped Updates</span>
+          <strong class="stat-value">{{ tweet_count }}</strong>
+          <p>Disaster updates currently plotted on the map.</p>
+        </article>
+
+        <article class="board-card stat-card">
+          <span class="stat-label">Field Reports</span>
+          <strong class="stat-value">{{ submission_count }}</strong>
+          <p>Submitted reports with area details and disaster notes.</p>
+        </article>
+
+        <article class="board-card stat-card">
+          <span class="stat-label">Tracked Areas</span>
+          <strong class="stat-value">{{ area_count }}</strong>
+          <p>Locations with disaster activity already stored in the system.</p>
+        </article>
+      </section>
+
+      <section class="home-content-grid">
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Intensity Meaning</h2>
+              <p>These colors explain the disaster state for users in a simple way.</p>
+            </div>
+          </div>
+
+          <div class="intensity-stack">
+            <div class="intensity-bar red static-bar">
+              <span>Red</span>
+              <small>Disaster is not under control and users should treat it as critical.</small>
+            </div>
+            <div class="intensity-bar yellow static-bar">
+              <span>Yellow</span>
+              <small>Situation is under control, but it still needs watching and fresh updates.</small>
+            </div>
+            <div class="intensity-bar green static-bar">
+              <span>Green</span>
+              <small>Area is out of danger and the risk level is currently low.</small>
+            </div>
+          </div>
+        </article>
+
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Latest Mapped Updates</h2>
+              <p>Recent disaster points already added to the map.</p>
+            </div>
+          </div>
+
+          <div class="home-feed">
+            {% if recent_tweets %}
+              {% for tweet in recent_tweets %}
+                <div class="tweet-card">
+                  <p>{{ tweet["text"] }}</p>
+                  <div class="tweet-meta">
+                    <span class="status-chip {{ 'red' if tweet['intensity'] == 'high' else 'yellow' if tweet['intensity'] == 'medium' else 'green' }}">
+                      {{ tweet["classification"] }}
+                    </span>
+                    <span>{{ tweet["location"] }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-copy">No mapped disaster updates yet.</div>
+            {% endif %}
+          </div>
+        </article>
+
+        <article class="board-card">
+          <div class="card-head">
+            <div>
+              <h2>Latest Field Reports</h2>
+              <p>Detailed disaster information submitted by the team.</p>
+            </div>
+          </div>
+
+          <div class="home-feed">
+            {% if recent_reports %}
+              {% for report in recent_reports %}
+                <div class="tweet-card">
+                  <p>{{ report["details"] or "No report details provided yet." }}</p>
+                  <div class="tweet-meta">
+                    <span class="status-chip yellow">{{ report["name"] or "Field report" }}</span>
+                    <span>{{ [report["city"], report["state"], report["country"]]|select|join(", ") }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="empty-copy">No field reports yet.</div>
+            {% endif %}
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

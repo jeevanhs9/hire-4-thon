@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAM - Admin Panel</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="side-rail">
+      <div class="rail-brand">
+        <div class="brand-mark"></div>
+        <div>
+          <strong>DAM</strong>
+          <small>Field Monitor</small>
+        </div>
+      </div>
+
+      <nav class="rail-nav">
+        <a class="rail-link" href="/home">
+          <span class="rail-box"></span>
+          <span>Home</span>
+        </a>
+        <a class="rail-link" href="/dashboard">
+          <span class="rail-box"></span>
+          <span>Disaster Dashboard</span>
+        </a>
+        <a class="rail-link" href="/submission">
+          <span class="rail-box"></span>
+          <span>Submission</span>
+        </a>
+        <a class="rail-link active" href="/admin">
+          <span class="rail-box"></span>
+          <span>Admin Panel</span>
+        </a>
+      </nav>
+
+      <a class="rail-link logout-link" href="/logout">
+        <span class="rail-box"></span>
+        <span>Logout</span>
+      </a>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <p class="page-kicker">DAM</p>
+          <h1>Admin Panel</h1>
+        </div>
+
+        <div class="header-actions">
+          <a class="header-action" href="/home">
+            <span class="header-action-box"></span>
+            <span>Home</span>
+          </a>
+          <a class="header-action" href="/dashboard">
+            <span class="header-action-box"></span>
+            <span>Dashboard</span>
+          </a>
+
+          <button class="profile-card" type="button">
+            <div class="profile-icon"></div>
+            <div>
+              <strong>{{ session.get('email', 'Admin Team') }}</strong>
+              <div class="profile-lines">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </header>
+
+      <section class="admin-stats-grid">
+        <article class="board-card stat-card">
+          <span class="stat-label">Total Submissions</span>
+          <strong class="stat-value" id="statTotal">0</strong>
+          <p>All field reports currently inside the review queue.</p>
+        </article>
+
+        <article class="board-card stat-card">
+          <span class="stat-label">Pending Review</span>
+          <strong class="stat-value" id="statPending">0</strong>
+          <p>New reports waiting for admin validation.</p>
+        </article>
+
+        <article class="board-card stat-card">
+          <span class="stat-label">Accepted</span>
+          <strong class="stat-value" id="statAccepted">0</strong>
+          <p>Accepted reports become visible on the public dashboard.</p>
+        </article>
+
+        <article class="board-card stat-card">
+          <span class="stat-label">Rejected</span>
+          <strong class="stat-value" id="statRejected">0</strong>
+          <p>Reports rejected from the public disaster feed.</p>
+        </article>
+      </section>
+
+      <section class="admin-grid">
+        <article class="board-card admin-list-card">
+          <div class="card-head">
+            <div>
+              <h2>Review Queue</h2>
+              <p>Open any submission, inspect the evidence, then accept, edit, or reject it.</p>
+            </div>
+            <button class="text-link" type="button" onclick="loadAdminData(selectedSubmissionId)">Refresh</button>
+          </div>
+
+          <div class="alert" id="adminAlert"></div>
+          <div class="admin-submission-list" id="submissionList"></div>
+        </article>
+
+        <article class="board-card admin-review-card">
+          <div class="card-head">
+            <div>
+              <h2>Submission Review</h2>
+              <p>Accepted records appear on the dashboard area information and image panels.</p>
+            </div>
+          </div>
+
+          <div id="reviewEmpty" class="empty-copy">
+            No submission is selected yet.
+          </div>
+
+          <div id="reviewPanel" class="admin-review-panel" hidden>
+            <div class="admin-review-top">
+              <div>
+                <div class="status-chip pending" id="selectedStatusChip">Pending Review</div>
+                <h3 id="selectedTitle">Submission</h3>
+                <p class="admin-review-subtitle" id="selectedLocation">Location will appear here.</p>
+              </div>
+              <div class="admin-review-meta">
+                <strong id="selectedTimestamp">-</strong>
+                <span id="selectedReviewMeta">Not reviewed yet.</span>
+              </div>
+            </div>
+
+            <div class="admin-review-grid">
+              <div class="admin-image-panel">
+                <div class="admin-image-frame">
+                  <img id="adminImagePreview" alt="Submission evidence" hidden />
+                  <div class="admin-image-empty" id="adminImageEmpty">No image uploaded for this report.</div>
+                </div>
+
+                <div class="admin-public-note" id="adminPublicNote">
+                  This submission is still pending admin action.
+                </div>
+              </div>
+
+              <div class="admin-form-panel">
+                <input type="hidden" id="submissionId" />
+
+                <div class="admin-fields-grid">
+                  <div class="form-group">
+                    <label for="adminStatus">Status</label>
+                    <select id="adminStatus">
+                      <option value="pending">Pending Review</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminPincode">Pincode</label>
+                    <input type="text" id="adminPincode" placeholder="560001" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminName">Name</label>
+                    <input type="text" id="adminName" placeholder="Reporter name" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminPhone">Phone</label>
+                    <input type="text" id="adminPhone" placeholder="Phone number" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminEmail">Email</label>
+                    <input type="email" id="adminEmail" placeholder="reporter@email.com" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminCountry">Country</label>
+                    <input type="text" id="adminCountry" placeholder="India" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminState">State</label>
+                    <input type="text" id="adminState" placeholder="Karnataka" />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="adminCity">City</label>
+                    <input type="text" id="adminCity" placeholder="Bengaluru" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="adminDetails">Disaster Details</label>
+                  <textarea id="adminDetails" rows="8" placeholder="Describe the disaster, what happened, affected people, current situation, and latest findings."></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label for="adminNotes">Admin Notes</label>
+                  <textarea id="adminNotes" rows="4" placeholder="Internal note for the moderation team."></textarea>
+                </div>
+
+                <div class="btn-row admin-actions">
+                  <button class="btn btn-secondary" type="button" onclick="updateSubmission('accepted')">Accept</button>
+                  <button class="btn btn-muted" type="button" onclick="updateSubmission()">Save Changes</button>
+                  <button class="btn btn-danger" type="button" onclick="updateSubmission('rejected')">Reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let adminSubmissions = [];
+    let selectedSubmissionId = null;
+
+    const fieldIds = [
+      "submissionId",
+      "adminStatus",
+      "adminName",
+      "adminPhone",
+      "adminEmail",
+      "adminCountry",
+      "adminState",
+      "adminCity",
+      "adminPincode",
+      "adminDetails",
+      "adminNotes"
+    ];
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatStatus(status) {
+      if (status === "accepted") return "Accepted";
+      if (status === "rejected") return "Rejected";
+      return "Pending Review";
+    }
+
+    function buildLocation(item) {
+      return [item.city, item.state, item.country].filter(Boolean).join(", ") || "Location not provided";
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function showAdminAlert(message, type = "success") {
+      const alert = $("adminAlert");
+      alert.textContent = message;
+      alert.className = `alert alert-${type === "error" ? "error" : "success"}`;
+      alert.style.display = "block";
+      clearTimeout(showAdminAlert.timer);
+      showAdminAlert.timer = setTimeout(() => {
+        alert.style.display = "none";
+      }, 2800);
+    }
+
+    function renderStats(stats = {}) {
+      $("statTotal").textContent = stats.total ?? 0;
+      $("statPending").textContent = stats.pending ?? 0;
+      $("statAccepted").textContent = stats.accepted ?? 0;
+      $("statRejected").textContent = stats.rejected ?? 0;
+    }
+
+    function renderSubmissionList() {
+      const list = $("submissionList");
+      if (!adminSubmissions.length) {
+        list.innerHTML = '<div class="empty-copy">No submissions are available for review yet.</div>';
+        return;
+      }
+
+      list.innerHTML = adminSubmissions.map((item) => {
+        const active = item.id === selectedSubmissionId ? " active" : "";
+        const details = (item.details || "No disaster description provided yet.").trim();
+        return `
+          <button class="admin-list-item${active}" type="button" data-id="${item.id}">
+            <div class="admin-list-head">
+              <span class="status-chip ${escapeHtml(item.status)}">${escapeHtml(formatStatus(item.status))}</span>
+              <strong>#${item.id}</strong>
+            </div>
+            <h3>${escapeHtml(buildLocation(item))}</h3>
+            <p>${escapeHtml(details.slice(0, 120))}${details.length > 120 ? "..." : ""}</p>
+            <div class="admin-list-meta">
+              <span>${escapeHtml(item.name || item.email || "Unknown reporter")}</span>
+              <span>${escapeHtml(formatDate(item.timestamp))}</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      list.querySelectorAll(".admin-list-item").forEach((button) => {
+        button.addEventListener("click", () => selectSubmission(Number(button.dataset.id)));
+      });
+    }
+
+    function populateReview(item) {
+      $("reviewEmpty").hidden = true;
+      $("reviewPanel").hidden = false;
+
+      $("submissionId").value = item.id;
+      $("adminStatus").value = item.status || "pending";
+      $("adminName").value = item.name || "";
+      $("adminPhone").value = item.phone || "";
+      $("adminEmail").value = item.email || "";
+      $("adminCountry").value = item.country || "";
+      $("adminState").value = item.state || "";
+      $("adminCity").value = item.city || "";
+      $("adminPincode").value = item.pincode || "";
+      $("adminDetails").value = item.details || "";
+      $("adminNotes").value = item.admin_notes || "";
+
+      const chip = $("selectedStatusChip");
+      chip.className = `status-chip ${item.status || "pending"}`;
+      chip.textContent = formatStatus(item.status);
+
+      $("selectedTitle").textContent = `${buildLocation(item)} Report`;
+      $("selectedLocation").textContent = `${item.name || "Unknown reporter"} | ${item.email || "No email"} | ${item.phone || "No phone"}`;
+      $("selectedTimestamp").textContent = formatDate(item.timestamp);
+      $("selectedReviewMeta").textContent = item.reviewed_at
+        ? `Reviewed by ${item.reviewer_email || "admin"} on ${formatDate(item.reviewed_at)}`
+        : "Not reviewed yet.";
+
+      const publicNote = $("adminPublicNote");
+      if (item.status === "accepted") {
+        publicNote.textContent = "This submission is accepted and visible on the public dashboard.";
+      } else if (item.status === "rejected") {
+        publicNote.textContent = "This submission is rejected and hidden from the public dashboard.";
+      } else {
+        publicNote.textContent = "This submission is pending admin action and not public yet.";
+      }
+
+      const image = $("adminImagePreview");
+      const imageEmpty = $("adminImageEmpty");
+      if (item.image_data) {
+        image.src = item.image_data;
+        image.hidden = false;
+        imageEmpty.hidden = true;
+      } else {
+        image.removeAttribute("src");
+        image.hidden = true;
+        imageEmpty.hidden = false;
+      }
+    }
+
+    function clearReviewPanel() {
+      $("reviewEmpty").hidden = false;
+      $("reviewPanel").hidden = true;
+      fieldIds.forEach((id) => {
+        const element = $(id);
+        if (!element) return;
+        if ("value" in element) {
+          element.value = "";
+        }
+      });
+    }
+
+    function selectSubmission(id) {
+      selectedSubmissionId = id;
+      renderSubmissionList();
+      const item = adminSubmissions.find((entry) => entry.id === id);
+      if (!item) {
+        clearReviewPanel();
+        return;
+      }
+      populateReview(item);
+    }
+
+    function buildPayload(statusOverride = null) {
+      return {
+        status: statusOverride || $("adminStatus").value || "pending",
+        name: $("adminName").value.trim(),
+        phone: $("adminPhone").value.trim(),
+        email: $("adminEmail").value.trim(),
+        country: $("adminCountry").value.trim(),
+        state: $("adminState").value.trim(),
+        city: $("adminCity").value.trim(),
+        pincode: $("adminPincode").value.trim(),
+        details: $("adminDetails").value.trim(),
+        admin_notes: $("adminNotes").value.trim()
+      };
+    }
+
+    async function loadAdminData(preferredId = selectedSubmissionId) {
+      try {
+        const response = await fetch("/api/admin/submissions");
+        if (!response.ok) {
+          throw new Error("Unable to load admin submissions.");
+        }
+        const data = await response.json();
+        adminSubmissions = data.submissions || [];
+        renderStats(data.stats || {});
+
+        if (!adminSubmissions.length) {
+          renderSubmissionList();
+          clearReviewPanel();
+          return;
+        }
+
+        const existing = adminSubmissions.find((item) => item.id === preferredId);
+        selectedSubmissionId = existing ? existing.id : adminSubmissions[0].id;
+        renderSubmissionList();
+        selectSubmission(selectedSubmissionId);
+      } catch (error) {
+        renderStats({});
+        $("submissionList").innerHTML = '<div class="empty-copy">Admin queue could not be loaded.</div>';
+        clearReviewPanel();
+        showAdminAlert(error.message || "Admin data could not be loaded.", "error");
+      }
+    }
+
+    async function updateSubmission(statusOverride = null) {
+      const id = Number($("submissionId").value);
+      if (!id) {
+        showAdminAlert("Select a submission before updating it.", "error");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/admin/submissions/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildPayload(statusOverride))
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Admin update failed.");
+        }
+        showAdminAlert(data.message || "Submission updated.");
+        await loadAdminData(id);
+      } catch (error) {
+        showAdminAlert(error.message || "Admin update failed.", "error");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadAdminData();
+    });
+  </script>
+</body>
+</html>

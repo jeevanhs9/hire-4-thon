@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAM - Login</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-frame">
+      <section class="auth-card">
+        <div class="auth-badge">DAM</div>
+
+        <header class="auth-header">
+          <p class="auth-kicker">Hackathon Access</p>
+          <h1 class="auth-title">
+            <span>Welcome Back</span>
+            <span>To Login</span>
+          </h1>
+        </header>
+
+        <div class="alert alert-error" id="loginAlert"></div>
+
+        <div class="form-group">
+          <label for="email">Email / Phone Number</label>
+          <input type="text" id="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" />
+        </div>
+
+        <div class="form-inline">
+          <label class="form-check" for="remember">
+            <input type="checkbox" id="remember" />
+            <span>Remember me</span>
+          </label>
+          <a class="text-link" href="#">Forgot?</a>
+        </div>
+
+        <button class="btn btn-primary wide" id="loginBtn" onclick="handleLogin()">Submit</button>
+
+        <div class="auth-divider">OR</div>
+        <p class="auth-textline">If you do not have an account, move to the signup page from here.</p>
+
+        <div class="auth-footer-actions">
+          <a class="btn btn-secondary" href="/signup">Signup</a>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    async function handleLogin() {
+      const button = document.getElementById("loginBtn");
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      hideAlert();
+
+      if (!email || !password) {
+        showAlert("Please fill in all fields.");
+        return;
+      }
+
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span> Signing in';
+
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          window.location.href = data.redirect;
+          return;
+        }
+
+        showAlert(data.message || "Login failed.");
+      } catch (error) {
+        showAlert("Server error. Is Flask running?");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Submit";
+      }
+    }
+
+    function showAlert(message) {
+      const alertBox = document.getElementById("loginAlert");
+      alertBox.textContent = message;
+      alertBox.style.display = "block";
+    }
+
+    function hideAlert() {
+      document.getElementById("loginAlert").style.display = "none";
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        handleLogin();
+      }
+    });
+  </script>
+</body>
+</html>
